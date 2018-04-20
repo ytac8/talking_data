@@ -14,8 +14,24 @@ class Trainer():
 
     def train(self):
 
-        self.optimzer.scheduler_step()
+        self.optimizer.scheduler_step()
 
         for batch_i, batch in enumerate(self.data_loader):
             self.optimizer.zero_grad()
-            input_var = batch
+            loss = 0
+            input_variable = batch['feature']
+            target = batch['target']
+            length = batch['length']
+
+            predict = self.model(input_variable, length)
+
+            # lossの計算
+            target = ()
+            predict = torch.masked_select(predict, mask)
+            loss += self.criterion(predict, target)
+
+            loss.backward()
+            self.optimizer.gradient_clip(self.clip)
+            self.optimizer.step()
+
+        return loss.data[0]
