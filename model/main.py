@@ -9,11 +9,11 @@ from torch.utils.data import DataLoader
 from trainer import Trainer
 from predictor import Predictor
 from encoder import Encoder
-from dataset import UserData
+from user_data import UserData
 from optimizer import Optimizer
 
 
-def main(dataset, epochs, is_train=True, use_time=False):
+def main(epochs, is_train=True, use_time=False):
     # initialize
     is_train = True
     n_epochs = epochs
@@ -23,22 +23,27 @@ def main(dataset, epochs, is_train=True, use_time=False):
     learning_rate = 0.1
     use_time = use_time
     use_cuda = True
-    batch_size = 20
+    batch_size = 1
     checkpoint_path = None
 
     train_user_count = pd.read_csv(
-        '../data/preprocesssed/train_user_counts.csv', header=None)
+        '../data/preprocessed/train_user_counts.csv', header=None)
     test_user_count = pd.read_csv(
-        '../data/preprocesssed/test_user_counts.csv', header=None)
+        '../data/preprocessed/test_user_counts.csv', header=None)
+
+    train_user_list = pd.read_csv('../data/preprocessed/user_list.csv')
+    test_user_list = pd.read_csv('../data/preprocessed/test_user_list.csv')
 
     train_max_len = max(train_user_count.iloc[:, 1])
     test_max_len = max(test_user_count.iloc[:, 1])
 
-    train_data, train_loader = dataset(dataset, batch_size, train_max_len)
-    test_data, test_loader = dataset(dataset, batch_size, test_max_len)
+    train_data, train_loader = dataset(
+        train_user_list, batch_size, train_max_len, True)
+    test_data, test_loader = dataset(
+        test_user_list, batch_size, test_max_len, False)
 
     # データの特徴量の数を定義
-    input_size = train_data.get_column_num()
+    input_size = 400
     output_size = 2
 
     encoder = Encoder(input_size, hidden_size,
@@ -50,7 +55,7 @@ def main(dataset, epochs, is_train=True, use_time=False):
     if torch.cuda.is_available():
         encoder.cuda()
 
-    predictor = Predictor(encoder, test_loader,)
+    predictor = Predictor(test_loader, encoder, criterion, use_cuda)
 
     if is_train:
         trainer = Trainer(train_loader, encoder, criterion,
@@ -66,11 +71,10 @@ def main(dataset, epochs, is_train=True, use_time=False):
             print(epoch, loss)
 
         print('finished training')
-
     else:
         checkpoint_path = '../output/save_point/' + epochs + 'epoch.pth.tar'
 
-    return auc, rmse
+    return auc
 
 
 def pred_and_print(predictor, model, data_loader, checkpoint, epochs=None):
@@ -94,10 +98,10 @@ def save_model(model, optimizer, epoch, save_epoch):
         torch.save(state, model_filename)
 
 
-def dataset(user_list, batch_size, max_seq_len):
+def dataset(user_list, batch_size, max_seq_len, is_train):
 
         # datasetの読み込み
-    dataset = UserData(user_list, max_seq_len)
+    dataset = UserData(user_list, max_seq_len, is_train)
     data_loader = DataLoader(dataset, batch_size=batch_size,
                              shuffle=False, num_workers=4)
 
@@ -111,7 +115,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     now = datetime.datetime.now().strftime('%s')
-    output_dir_name = args.dir_name + '/'
+    output_dir_name = 'log/'
     epochs = args.epochs
     file_name = now + '.csv'
 
@@ -120,8 +124,9 @@ if __name__ == '__main__':
     except FileExistsError as e:
         pass
 
-    output_path = '../../../log/' + output_dir_name + file_name
+    output_path = '../' + output_dir_name + file_name
+    main(epochs)
     sum_aucs = 0
 
     with open(output_path, 'w') as f:
-        f.write(str(rmse) + ',' + str(sum_aucs))
+        f.write(str(sum_aucs))
