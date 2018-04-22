@@ -6,8 +6,8 @@ import numpy as np
 
 class UserData(Dataset):
 
-    def __init__(self):
-        self.user_list = pd.read_csv("../data/preprocessed/user_list.csv")
+    def __init__(self, user_list, max_len):
+        self.user_list = pd.read_csv(user_list)
         self.user_list = self.user_list.iloc[:, 0].tolist()
 
     def __len__(self):

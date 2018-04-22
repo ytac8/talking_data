@@ -1,6 +1,3 @@
-import torch
-
-
 class Trainer():
 
     def __init__(self, data_loader, model, criterion, optimizer, cuda, clip=5):
@@ -22,14 +19,10 @@ class Trainer():
             input_variable = batch['feature']
             target = batch['target']
             length = batch['length']
-
             predict = self.model(input_variable, length)
 
             # lossの計算
-            target = ()
-            predict = torch.masked_select(predict, mask)
             loss += self.criterion(predict, target)
-
             loss.backward()
             self.optimizer.gradient_clip(self.clip)
             self.optimizer.step()
