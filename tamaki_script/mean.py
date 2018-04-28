@@ -5,21 +5,55 @@ from sklearn.model_selection import train_test_split
 import lightgbm as lgb
 import gc
 from contextlib import contextmanager
+from sklearn.model_selection import KFold
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-train_df = pd.read_hdf('X_train.h5', 'table')
-test_df = pd.read_hdf('X_test.h5', 'table')
+@contextmanager
+def timer(name):
+    t0 = time.time()
+    yield
+    print(f'[{name}] done in {time.time() - t0:.0f} s')
 
-sub = pd.DataFrame()
-sub['click_id'] = test_df.click_id.values.astype('uint32')
+def df_add_means(df_history, df, cols, tag="_mean"):
+    print('df_add_means', cols)
+    gp = df_history[cols].groupby(by=cols[0:len(cols) - 1])[cols[len(cols) - 1]].mean().reset_index(). \
+        rename(index=str, columns={cols[len(cols) - 1]: "_".join(cols)+tag})
+    df = df.merge(gp, on=cols[0:len(cols) - 1], how='left')
+    gc.collect()
+    return df.fillna(-1)
+
+with timer("load training data"):
+    train_df = pd.read_hdf('X_train.h5', 'table')
+
+with timer("load test data"):
+    test_df = pd.read_hdf('X_test.h5', 'table')
+
+with timer("Adding means to test"):
+    test_df = df_add_means(train_df, test_df, ['ip', 'is_attributed'])
+
+kf = KFold(n_splits=3, shuffle=False)
+df = pd.DataFrame()
+with timer("Adding means to train"):
+    for train_indices, valid_indices in kf.split(train_df):
+        kf_train = train_df.iloc[train_indices]
+        kf_valid = train_df.iloc[valid_indices]
+        kf_valid = df_add_means(kf_train, kf_valid, ['ip', 'is_attributed'])
+        df = df.append(kf_valid)
+
+train_df = df
+del df
+gc.collect()
 
 len_train = len(train_df)
 val_size=2500000
 
 val_df = train_df[(len_train-val_size):]
 train_df = train_df[:(len_train-val_size)]
+
+sub = pd.DataFrame()
+sub['click_id'] = test_df.click_id.values.astype('uint32')
 
 target = 'is_attributed'
 metrics = 'auc'
@@ -65,7 +99,7 @@ params = {
 
 evals_results = {}
 num_boost_round = 500
-early_stopping_rounds = 30
+early_stopping_rounds = 20
 
 print("Training...")
 start_time = time.time()
@@ -99,7 +133,7 @@ for k, v in sorted(mapper.items(), key=lambda x:x[1]):
     x.append(k)
     y.append(v)
 
-plt.figure(figsize=(16,9))
+plt.figure(figsize=(32,18))
 plt.barh(range(len(y)), y, align='center')
 plt.yticks(range(len(x)), x)
 plt.savefig(f'auc_{valid_score}_it_{bst1.best_iteration}.png')
