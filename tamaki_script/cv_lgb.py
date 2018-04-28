@@ -103,7 +103,10 @@ def main():
         x.append(k)
         y.append(v)
 
-    drop_cols = '_'.join(args.drop_cols)
+    if args.drop_cols is None:
+        drop_cols = 'None'
+    else:
+        drop_cols = '_'.join(args.drop_cols)
     plt.figure(figsize=(32,18))
     plt.barh(range(len(y)), y, align='center')
     plt.yticks(range(len(x)), x)
