@@ -104,7 +104,7 @@ concat_df = df_add_uniques(concat_df, ['app', 'channel']) # X6
 concat_df.info()
 test_supplement_df = concat_df[len_train:]
 train_df = concat_df[:len_train]
-test_df = test_df.merge(test_supplement_df, on=['ip','app','device','os', 'channel', 'click_time', 'click_id'], how='left')
+test_df = test_df.merge(test_supplement_df, on=['ip','app','device','os', 'channel', 'click_time'], how='left')
 
 train_df.to_hdf("X_train_add_supplement.h5", 'table', complib='blosc', complevel=9)
 test_df.to_hdf("X_test_add_supplement.h5", 'table', complib='blosc', complevel=9)
