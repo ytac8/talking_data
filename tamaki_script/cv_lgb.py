@@ -31,9 +31,10 @@ def main():
     metrics = 'auc'
 
     categorical_features = ['ip','app','os','channel','device']
-    for col in args.drop_cols:
-        if col in categorical_features:
-            categorical_features.remove(col)
+    if args.drop_cols is not None:
+        for col in args.drop_cols:
+            if col in categorical_features:
+                categorical_features.remove(col)
     predictors = list(set(train_df.columns)-set([target])-set(['day','click_time', 'click_id']))
 
     print(f'predictors: {predictors}')
