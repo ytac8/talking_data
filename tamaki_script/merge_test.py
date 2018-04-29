@@ -21,4 +21,6 @@ test_supplement_df = test_supplement_df.merge(test_supplement_df_click, on=['cli
 test_supplement_df.drop(['click_id'], axis=1, inplace=True)
 
 test_df = test_df.merge(test_supplement_df, on=['ip','app','device','os', 'channel', 'click_time'], how='left')
-test_supplement_df.to_hdf("X_test_add_supplement.h5", 'table', complib='blosc', complevel=9)
+
+test_df = test_df.drop_duplicates(subset='click_id')
+test_df.to_hdf("X_test_add_supplement.h5", 'table', complib='blosc', complevel=9)
