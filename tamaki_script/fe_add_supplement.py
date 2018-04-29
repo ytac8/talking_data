@@ -1,13 +1,8 @@
 import pandas as pd
 import time
 import numpy as np
-from sklearn.model_selection import train_test_split
-import lightgbm as lgb
 import gc
 from contextlib import contextmanager
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 @contextmanager
 def timer(name):
@@ -48,14 +43,7 @@ def make_count_features(df):
         df = df_add_counts(df, ['ip', 'app', 'os'])
         df = df_add_counts(df, ['ip', 'device'])
         df = df_add_counts(df, ['app', 'channel'])
-
-def make_uniques_features(df):
-    with timer("add uniques features"):
-        df = df_add_uniques(df, ['ip', 'channel']) # X0
-        df = df_add_uniques(df, ['ip', 'app']) # X3
-        df = df_add_uniques(df, ['ip', 'device', 'os', 'app']) # X8
-        df = df_add_uniques(df, ['ip', 'device']) # X5
-        df = df_add_uniques(df, ['app', 'channel']) # X6
+        df = df_add_counts(df, ['ip','day','hour','channel'])
 
 def make_next_click_feature(df):
     with timer("Adding next click times"):
@@ -78,9 +66,6 @@ dtypes = {
 with timer("load training data"):
     train_df = pd.read_csv(path+"train.csv", dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'is_attributed'])
 
-with timer("load test data"):
-    test_df = pd.read_csv(path+"test.csv", dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'click_id'])
-
 with timer("load test supplement data"):
     test_supplement_df = pd.read_csv(path+"test_supplement.csv", dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'click_id'])
 
@@ -95,18 +80,21 @@ gc.collect()
 make_count_features(concat_df)
 make_next_click_feature(concat_df)
 
-concat_df = df_add_uniques(concat_df, ['ip', 'channel']) # X0
-concat_df = df_add_uniques(concat_df, ['ip', 'app']) # X3
-concat_df = df_add_uniques(concat_df, ['ip', 'device', 'os', 'app']) # X8
-concat_df = df_add_uniques(concat_df, ['ip', 'device']) # X5
-concat_df = df_add_uniques(concat_df, ['app', 'channel']) # X6
+with timer("add uniques features"):
+    concat_df = df_add_uniques(concat_df, ['ip', 'channel']) # X0
+    concat_df = df_add_uniques(concat_df, ['ip', 'app']) # X3
+    concat_df = df_add_uniques(concat_df, ['ip', 'device', 'os', 'app']) # X8
+    concat_df = df_add_uniques(concat_df, ['ip', 'device']) # X5
+    concat_df = df_add_uniques(concat_df, ['app', 'channel']) # X6
 
-concat_df.info()
 test_supplement_df = concat_df[len_train:]
 train_df = concat_df[:len_train]
-test_df = test_df.merge(test_supplement_df, on=['ip','app','device','os', 'channel', 'click_time'], how='left')
 
-train_df.to_hdf("X_train_add_supplement.h5", 'table', complib='blosc', complevel=9)
-test_df.to_hdf("X_test_add_supplement.h5", 'table', complib='blosc', complevel=9)
+with timer("train to_hdf"):
+    train_df.to_hdf("X_train_add_supplement.h5", 'table', complib='blosc', complevel=9)
+
+
+with timer("test to_hdf"):
+    test_supplement_df.to_hdf("test_supplement.h5", 'table', complib='blosc', complevel=9)
 
 print('done.')
