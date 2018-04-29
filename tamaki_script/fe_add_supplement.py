@@ -1,13 +1,8 @@
 import pandas as pd
 import time
 import numpy as np
-from sklearn.model_selection import train_test_split
-import lightgbm as lgb
 import gc
 from contextlib import contextmanager
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 @contextmanager
 def timer(name):
@@ -71,11 +66,8 @@ dtypes = {
 with timer("load training data"):
     train_df = pd.read_csv(path+"train.csv", dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'is_attributed'])
 
-with timer("load test data"):
-    test_df = pd.read_csv(path+"test.csv", dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'click_id'])
-
 with timer("load test supplement data"):
-    test_supplement_df = pd.read_csv(path+"test_supplement.csv", dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time'])
+    test_supplement_df = pd.read_csv(path+"test_supplement.csv", dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'click_id'])
 
 len_train = train_df.shape[0]
 print('len_train:', len_train)
@@ -98,14 +90,11 @@ with timer("add uniques features"):
 test_supplement_df = concat_df[len_train:]
 train_df = concat_df[:len_train]
 
-test_df['click_time']= pd.to_datetime(test_df['click_time'])
-
-test_df = test_df.merge(test_supplement_df, on=['ip','app','device','os', 'channel', 'click_time'], how='left')
-
 with timer("train to_hdf"):
     train_df.to_hdf("X_train_add_supplement.h5", 'table', complib='blosc', complevel=9)
 
+
 with timer("test to_hdf"):
-    test_df.to_hdf("X_test_add_supplement.h5", 'table', complib='blosc', complevel=9)
+    test_supplement_df.to_hdf("test_supplement.h5", 'table', complib='blosc', complevel=9)
 
 print('done.')
