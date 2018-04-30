@@ -17,6 +17,7 @@ test_supplement_df_click = pd.read_csv(path+"test_supplement.csv", dtype=dtypes,
 test_df = pd.read_csv(path+"test.csv", dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'click_id'])
 
 test_supplement_df.click_id = test_supplement_df.click_id.values.astype('uint32')
+test_supplement_df.drop(['click_time'], axis=1, inplace=True)
 test_supplement_df = test_supplement_df.merge(test_supplement_df_click, on=['click_id'], how='left')
 test_supplement_df.drop(['click_id'], axis=1, inplace=True)
 
