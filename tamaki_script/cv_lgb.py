@@ -14,28 +14,29 @@ def main():
     psr.add_argument('-lr', '--learning_rate', default=0.2, type=float)
     psr.add_argument('--num_leaves', default=31, type=int)
     psr.add_argument('-d', '--drop_cols', nargs='*', default=None)
-    psr.add_argument('-tp', '--train_path', default='X_train.h5')
+    psr.add_argument('-tp', '--train_path', default='X_train_add_supplement.h5')
     args = psr.parse_args()
     print(f'loading {args.train_path}')
     train_df = pd.read_hdf(args.train_path, 'table')
+
+    val_df = train_df.loc[train_df.day == 9]
+    train_df = train_df.loc[train_df.day < 9]
 
     if args.drop_cols is not None:
         print(f'drop_cols:{args.drop_cols}')
         train_df = train_df.drop(args.drop_cols, axis=1)
 
-    val_df = train_df.loc[train_df.day == 9]
-    train_df = train_df.loc[train_df.day < 9]
     train_df.info()
 
     target = 'is_attributed'
     metrics = 'auc'
 
-    categorical_features = ['ip','app','os','channel','device']
+    categorical_features = ['app','os','channel','device']
     if args.drop_cols is not None:
         for col in args.drop_cols:
             if col in categorical_features:
                 categorical_features.remove(col)
-    predictors = list(set(train_df.columns)-set([target])-set(['day','click_time', 'click_id']))
+    predictors = list(set(train_df.columns)-set([target])-set(['click_time', 'click_id']))
 
     print(f'predictors: {predictors}')
 
@@ -110,7 +111,7 @@ def main():
     plt.figure(figsize=(32,18))
     plt.barh(range(len(y)), y, align='center')
     plt.yticks(range(len(x)), x)
-    plt.savefig(f'cv_auc_{valid_score}_it_{bst1.best_iteration}_drop_{drop_cols}_.png')
+    plt.savefig(f'cv_auc_{valid_score}_it_{bst1.best_iteration}_drop_{drop_cols}_data_{args.train_path}.png')
     print('done.')
 
 if __name__ == '__main__': main()
