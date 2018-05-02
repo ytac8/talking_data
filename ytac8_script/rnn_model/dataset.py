@@ -2,16 +2,14 @@ from torch.utils.data import Dataset
 from torch.autograd import Variable
 import pickle
 import torch
-import pandas as pd
 
 
 class UserData(Dataset):
 
-    def __init__(self, user_list, max_len, is_train):
-        self.user_list = user_list.iloc[:, 0].tolist()
+    def __init__(self, data_reader, batch_size, is_train):
+        self.data = data_reader
         self.is_train = is_train
-        self.max_len = max_len
-        self.dictionaries = {}
+        self.batch_size = batch_size
 
         # load dictionary
         with open('../data/pickle/Embedding/device_dict.pkl', mode='rb') as f:
@@ -34,27 +32,22 @@ class UserData(Dataset):
             self.channel_emb = pickle.load(f)
 
     def __len__(self):
-        return len(self.user_list)
+        return self.batch_size
 
     def __getitem__(self, idx):
         user_id = self.user_list[idx]
         user_data, label = self._preprocess(user_id)
         return {"feature": user_data, "label": label}
 
-    def _preprocess(self, user_id):
-        df = pd.read_csv(
-            '../data/preprocessed/user_data/data_' + str(user_id) + '.csv')
+    def _preprocess(self):
+        df = self.data.get_chunk(self.batch_size)
         df = df.sort_values(by='click_time')
 
         # inputになるテンソルの作成
-        app_input = Variable(torch.LongTensor(
-            self._convert(df.app.tolist(), 'app')))
-        os_input = Variable(torch.LongTensor(
-            self._convert(df.os.tolist(), 'os')))
-        device_input = Variable(torch.LongTensor(
-            self._convert(df.device.tolist(), 'device')))
-        channel_input = Variable(torch.LongTensor(
-            self._convert(df.channel.tolist(), 'channel')))
+        app_input = torch.LongTensor(self._convert(df.app.tolist(), 'app'))
+        os_input = torch.LongTensor(self._convert(df.os.tolist(), 'os'))
+        device_input = torch.LongTensor(self._convert(df.device.tolist(), 'device'))
+        channel_input = torch.LongTensor(self._convert(df.channel.tolist(), 'channel'))
 
         app_embedded = self.app_emb(app_input)
         device_embedded = self.device_emb(device_input)

@@ -1,5 +1,7 @@
 import os
 import torch
+from pathlib import Path
+import pickle
 import torch.nn as nn
 import argparse
 from tqdm import tqdm
@@ -23,27 +25,17 @@ def main(epochs, is_train=True, use_time=False):
     learning_rate = 0.1
     use_time = use_time
     use_cuda = True
-    batch_size = 1
+    batch_size = 256
     checkpoint_path = None
+    data_path = '../../data/'
 
-    train_user_count = pd.read_csv(
-        '../data/preprocessed/train_user_counts.csv', header=None)
-    test_user_count = pd.read_csv(
-        '../data/preprocessed/test_user_counts.csv', header=None)
-
-    train_user_list = pd.read_csv('../data/preprocessed/user_list.csv')
-    test_user_list = pd.read_csv('../data/preprocessed/test_user_list.csv')
-
-    train_max_len = max(train_user_count.iloc[:, 1])
-    test_max_len = max(test_user_count.iloc[:, 1])
-
-    train_data, train_loader = dataset(
-        train_user_list, batch_size, train_max_len, True)
-    test_data, test_loader = dataset(
-        test_user_list, batch_size, test_max_len, False)
+    train_fr = pd.read_csv(data_path + 'raw/train.csv', chunk_size=batch_size)
+    test_fr = pd.read_csv(data_path + 'raw/test.csv', chunk_size=batch_size)
+    train_data, train_loader = dataset(train_fr, batch_size, True)
+    test_data, test_loader = dataset(test_fr, batch_size, False)
 
     # データの特徴量の数を定義
-    input_size = 400
+    input_size = 500
     output_size = 2
 
     encoder = Encoder(input_size, hidden_size,
@@ -69,7 +61,6 @@ def main(epochs, is_train=True, use_time=False):
                 auc, rmse = pred_and_print(
                     predictor, encoder, test_loader, checkpoint_path, epoch)
             print(epoch, loss)
-
         print('finished training')
     else:
         checkpoint_path = '../output/save_point/' + epochs + 'epoch.pth.tar'
@@ -100,7 +91,7 @@ def save_model(model, optimizer, epoch, save_epoch):
 
 def dataset(user_list, batch_size, max_seq_len, is_train):
 
-        # datasetの読み込み
+    # datasetの読み込み
     dataset = UserData(user_list, max_seq_len, is_train)
     data_loader = DataLoader(dataset, batch_size=batch_size,
                              shuffle=False, num_workers=4)
