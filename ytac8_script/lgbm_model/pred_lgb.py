@@ -9,8 +9,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-train_df = pd.read_hdf('./X_train_add_supplement_add_rolling.h5', 'table')
-test_df = pd.read_hdf('./X_test_add_supplement.h5', 'table')
+train_df = pd.read_hdf(
+    '../../data/featureh5/X_train_add_supplement_add_rolling.h5', 'table')
+test_df = pd.read_hdf('../../data/featureh5/X_test_add_supplement.h5', 'table')
 
 sub = pd.DataFrame()
 sub['click_id'] = test_df.click_id.values.astype('uint32')
@@ -23,13 +24,27 @@ train_df = train_df[:(len_train - val_size)]
 
 target = 'is_attributed'
 metrics = 'auc'
-lr = 0.15
-num_leaves = 64
+lr = 0.1
+num_leaves = 127
+
+drop_feature_list = [
+    'click_time',
+    'click_id',
+    'minute',
+    'second',
+    'ip',
+    'device',
+    'attributed_time',
+    'ip_day_hour_minute_count',
+    'ip_day_hour_minute_second_count',
+    'day',
+    'app_channel_count'
+]
 
 # categorical_features = ['ip', 'app', 'os', 'channel', 'device']
 categorical_features = ['app', 'os', 'channel']
 predictors = list(set(train_df.columns) -
-                  set([target]) - set(['click_time', 'click_id', 'minute', 'second', 'ip', 'device', 'attributed_time', 'ip_day_hour_minute_count', 'ip_day_hour_minute_second_count', 'day']))
+                  set([target]) - set(drop_feature_list))
 
 print(f'predictors: {predictors}')
 
@@ -42,33 +57,35 @@ lgbvalid = lgb.Dataset(val_df[predictors].values, label=val_df[target].values,
                        categorical_feature=categorical_features
                        )
 
-params = {'boosting_type': 'gbdt',
-          'objective': 'binary',
-          'metric': metrics,
-          'learning_rate': lr,
-          #'is_unbalance': 'true',  #because training data is unbalance (replaced with scale_pos_weight)
-          # we should let it be smaller than 2^(max_depth) 31
-          'num_leaves': num_leaves,
-          'max_depth': -1,  # -1 means no limit
-          # Minimum number of data need in a child(min_data_in_leaf)
-          'min_child_samples': 20,
-          'max_bin': 255,  # Number of bucketed bin for feature values
-          'subsample': 0.6,  # Subsample ratio of the training instance.
-          'subsample_freq': 0,  # frequence of subsample, <=0 means no enable
-          # Subsample ratio of columns when constructing each tree.
-          'colsample_bytree': 0.3,
-          # Minimum sum of instance weight(hessian) needed in a child(leaf)
-          'min_child_weight': 5,
-          'subsample_for_bin': 200000,  # Number of samples for constructing bin
-          'min_split_gain': 0,  # lambda_l1, lambda_l2 and min_gain_to_split to regularization
-          'reg_alpha': 0,  # L1 regularization term on weights
-          'reg_lambda': 5,  # L2 regularization term on weights
-          'nthread': 32,
-          'scale_pos_weight': 200, 'verbose': 0
-          }
+params = {
+    # 'boosting_type': 'gbdt',
+    'boosting_type': 'dart',
+    'objective': 'binary',
+    'metric': metrics,
+    # because training data is unbalance (replaced with scale_pos_weight)
+    # 'is_unbalance': 'true',
+    # we should let it be smaller than 2^(max_depth) 31
+    'num_leaves': num_leaves,
+    'max_depth': -1,  # -1 means no limit
+    # Minimum number of data need in a child(min_data_in_leaf)
+    'min_child_samples': 20,
+    'max_bin': 255,  # Number of bucketed bin for feature values
+    'subsample': 0.6,  # Subsample ratio of the training instance.
+    'subsample_freq': 0,  # frequence of subsample, <=0 means no enable
+    # Subsample ratio of columns when constructing each tree.
+    'colsample_bytree': 0.3,
+    # Minimum sum of instance weight(hessian) needed in a child(leaf)
+    'min_child_weight': 5,
+    'subsample_for_bin': 200000,  # Number of samples for constructing bin
+    'min_split_gain': 0,  # lambda_l1, lambda_l2 and min_gain_to_split to regularization
+    'reg_alpha': 0,  # L1 regularization term on weights
+    'reg_lambda': 5,  # L2 regularization term on weights
+    'nthread': 32,
+    'scale_pos_weight': 200, 'verbose': 0
+}
 
 evals_results = {}
-num_boost_round = 500
+num_boost_round = 10000
 early_stopping_rounds = 50
 
 print("Training...")
@@ -80,6 +97,7 @@ bst1 = lgb.train(params,
                  valid_names=['valid'],
                  evals_result=evals_results,
                  num_boost_round=num_boost_round,
+                 learning_rates=lambda iter: lr * (0.995 ** iter),
                  early_stopping_rounds=early_stopping_rounds,
                  verbose_eval=10)
 

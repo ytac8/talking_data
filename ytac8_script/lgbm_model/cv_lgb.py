@@ -1,3 +1,4 @@
+import json
 import argparse
 import pandas as pd
 import time
@@ -52,11 +53,11 @@ def main():
                            )
 
     params = {
-        'boosting_type': 'gbdt',
+        # 'boosting_type': 'gbdt',
+        'boosting_type': 'dart',
         'objective': 'binary',
         'metric': metrics,
-        'learning_rate': args.learning_rate,
-        #'is_unbalance': 'true',  #because training data is unbalance (replaced with scale_pos_weight)
+        # 'is_unbalance': 'true',  # because training data is unbalance (replaced with scale_pos_weight)
         # we should let it be smaller than 2^(max_depth) 31
         'num_leaves': args.num_leaves,
         'max_depth': -1,  # -1 means no limit
@@ -79,8 +80,8 @@ def main():
     }
 
     evals_results = {}
-    num_boost_round = 500
-    early_stopping_rounds = 30
+    num_boost_round = 10000
+    early_stopping_rounds = 50
 
     print("Training...")
     start_time = time.time()
@@ -88,13 +89,16 @@ def main():
     bst1 = lgb.train(params,
                      lgbtrain,
                      valid_sets=[lgbvalid],
+                     learning_rates=lambda iter: args.learning_rate *
+                     (0.995 ** iter),
                      valid_names=['valid'],
                      evals_result=evals_results,
                      num_boost_round=num_boost_round,
                      early_stopping_rounds=early_stopping_rounds,
-                     verbose_eval=10)
-
+                     verbose_eval=10,
+                     )
     print('[{}]: model training time'.format(time.time() - start_time))
+
     del train_df
     del val_df
     gc.collect()
@@ -110,15 +114,14 @@ def main():
         x.append(k)
         y.append(v)
 
-    if args.drop_cols is None:
-        drop_cols = 'None'
-    else:
-        drop_cols = '_'.join(args.drop_cols)
     plt.figure(figsize=(32, 18))
     plt.barh(range(len(y)), y, align='center')
     plt.yticks(range(len(x)), x)
     plt.savefig(
-        f'cv_auc_{valid_score}_it_{bst1.best_iteration}_drop_{drop_cols}_.png')
+        f'cv_auc_{valid_score}_it_{bst1.best_iteration}.png')
+
+    # save model to file
+    lgb.save_model(f'model_{valid_score}.txt')
     print('done.')
 
 
