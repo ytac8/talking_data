@@ -24,7 +24,7 @@ train_df = train_df[:(len_train - val_size)]
 
 target = 'is_attributed'
 metrics = 'auc'
-lr = 0.1
+lr = 0.01
 num_leaves = 127
 
 drop_feature_list = [
@@ -97,6 +97,7 @@ bst1 = lgb.train(params,
                  valid_names=['valid'],
                  evals_result=evals_results,
                  num_boost_round=num_boost_round,
+                 init_model='model.txt',
                  learning_rates=lambda iter: lr * (0.995 ** iter),
                  early_stopping_rounds=early_stopping_rounds,
                  verbose_eval=10)
