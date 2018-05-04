@@ -90,7 +90,7 @@ def main():
                      lgbtrain,
                      valid_sets=[lgbvalid],
                      learning_rates=lambda iter: args.learning_rate *
-                     (0.995 ** iter),
+                     (0.99 ** iter),
                      valid_names=['valid'],
                      evals_result=evals_results,
                      num_boost_round=num_boost_round,
@@ -121,7 +121,7 @@ def main():
         f'cv_auc_{valid_score}_it_{bst1.best_iteration}.png')
 
     # save model to file
-    lgb.save_model(f'model_{valid_score}.txt')
+    bst1.save_model('model.txt')
     print('done.')
 
 
