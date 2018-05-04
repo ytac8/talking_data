@@ -9,8 +9,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-train_df = pd.read_hdf('X_train.h5', 'table')
-test_df = pd.read_hdf('X_test.h5', 'table')
+train_df = pd.read_hdf('../input/X_train_add_supplement.h5', 'table')
+test_df = pd.read_hdf('../input/X_test_add_supplement.h5', 'table')
 
 sub = pd.DataFrame()
 sub['click_id'] = test_df.click_id.values.astype('uint32')
@@ -23,11 +23,11 @@ train_df = train_df[:(len_train-val_size)]
 
 target = 'is_attributed'
 metrics = 'auc'
-lr = 0.2
-num_leaves = 31
+lr = 0.1
+num_leaves = 400
 
-categorical_features = ['ip','app','os','channel','device']
-predictors = list(set(train_df.columns)-set([target])-set(['click_time', 'click_id']))
+categorical_features = ['app','os','channel','device']
+predictors = list(set(train_df.columns)-set([target])-set(['click_time', 'click_id', 'ip', 'second', 'minute']))
 
 print(f'predictors: {predictors}')
 

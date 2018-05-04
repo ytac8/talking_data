@@ -73,7 +73,7 @@ def main():
     }
 
     evals_results = {}
-    num_boost_round = 500
+    num_boost_round = 10000
     early_stopping_rounds = 20
 
     print("Training...")
