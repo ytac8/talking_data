@@ -39,7 +39,6 @@ class UserData(Dataset):
     def __getitem__(self, idx):
         user_id = self.user_list[idx]
         user_data, label = self._preprocess(user_id)
-        # padded = torch.from_numpy(self._padding(user_data))
         return {"feature": user_data, "label": label}
 
     def _preprocess(self, user_id):

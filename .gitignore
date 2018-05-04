@@ -1,5 +1,8 @@
 data
-notebook
+experiment_notebook
+log
+old
+results
 
 __pycache__/
 *.py[cod]
