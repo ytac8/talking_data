@@ -107,9 +107,9 @@ def train_lightgbm_with_pseudo_labelling(
         id_name    = id_name,
         iteration  = trained_lgb.best_iteration
     )
-    pseudo_labels = (pseudo_labels > pseudo_label_threshold).astype(np.uint8)          
-    unlabeled_df[target] = pseudo_labels
-    train_df.append(unlabeled_df)
+    unlabeled_df = unlabeled_df[pseudo_labels > pseudo_label_threshold]
+    unlabeled_df[target] = 1
+    train_df = train_df.append(unlabeled_df)
     
     trained_lgb_with_pseudo_labels = train_lightgbm(
         train_df,
