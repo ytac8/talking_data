@@ -24,7 +24,7 @@ train_df = train_df[:(len_train - val_size)]
 
 target = 'is_attributed'
 metrics = 'auc'
-lr = 0.01
+lr = 0.05
 num_leaves = 127
 
 drop_feature_list = [
@@ -38,7 +38,8 @@ drop_feature_list = [
     'ip_day_hour_minute_count',
     'ip_day_hour_minute_second_count',
     'day',
-    'app_channel_count'
+    # 'app_channel_unique',
+    # 'hour'
 ]
 
 # categorical_features = ['ip', 'app', 'os', 'channel', 'device']
@@ -65,11 +66,13 @@ params = {
     # because training data is unbalance (replaced with scale_pos_weight)
     # 'is_unbalance': 'true',
     # we should let it be smaller than 2^(max_depth) 31
+    'learning_rate': lr,
     'num_leaves': num_leaves,
     'max_depth': -1,  # -1 means no limit
     # Minimum number of data need in a child(min_data_in_leaf)
     'min_child_samples': 20,
     'max_bin': 255,  # Number of bucketed bin for feature values
+    # 'max_bin': 512,  # Number of bucketed bin for feature values
     'subsample': 0.6,  # Subsample ratio of the training instance.
     'subsample_freq': 0,  # frequence of subsample, <=0 means no enable
     # Subsample ratio of columns when constructing each tree.
@@ -81,7 +84,8 @@ params = {
     'reg_alpha': 0,  # L1 regularization term on weights
     'reg_lambda': 5,  # L2 regularization term on weights
     'nthread': 32,
-    'scale_pos_weight': 200, 'verbose': 0
+    'scale_pos_weight': 200,
+    'verbose': 0
 }
 
 evals_results = {}
@@ -97,8 +101,6 @@ bst1 = lgb.train(params,
                  valid_names=['valid'],
                  evals_result=evals_results,
                  num_boost_round=num_boost_round,
-                 init_model='model.txt',
-                 learning_rates=lambda iter: lr * (0.995 ** iter),
                  early_stopping_rounds=early_stopping_rounds,
                  verbose_eval=10)
 
