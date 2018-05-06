@@ -36,6 +36,6 @@ class Optimizer():
             self.decoder_scheduler.step()
 
     def gradient_clip(self, clip):
-        torch.nn.utils.clip_grad_norm(self.encoder.parameters(), clip)
+        torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), clip)
         if self.model_name == 'seq2seq':
             torch.nn.utils.clip_grad_norm(self.decoder.parameters(), clip)

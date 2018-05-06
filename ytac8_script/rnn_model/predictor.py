@@ -15,10 +15,10 @@ class Predictor():
         for batch_i, batch in enumerate(self.data_loader):
             self.optimizer.zero_grad()
             input_variable = batch['feature']
-            length = batch['length']
+            index = batch['index']
             target = batch['label']
-            predict = self.model(input_variable, length)
+            predict = self.model(input_variable)
 
         auc = roc_auc_score(target, predict)
 
-        return predict, auc
+        return predict, index, auc
