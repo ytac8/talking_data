@@ -10,7 +10,8 @@ from keras.layers import Input, Embedding, Dense, Flatten, Dropout, concatenate
 from keras.layers import BatchNormalization, SpatialDropout1D
 from keras.callbacks import Callback
 from keras.models import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, SGD
+from sklearn.preprocessing import MinMaxScaler
 
 class roc_callback(Callback):
     def __init__(self,training_data,validation_data):
@@ -56,6 +57,15 @@ print('load train....')
 train_df = pd.read_hdf('../h5/X_train_add_supplement.h5', 'table')
 print('load test....')
 test_df = pd.read_hdf('../h5/X_test_add_supplement.h5', 'table')
+
+train_df['nextClick'].fillna((train_df['nextClick'].mean()), inplace=True)
+test_df['nextClick'].fillna((test_df['nextClick'].mean()), inplace=True)
+
+for fea in ['ip_day_hour_count','ip_app_count','ip_app_os_count','ip_device_count',
+        'app_channel_count','nextClick','ip_day_hour_minute_count',
+        'ip_device_os_app_unique', 'ip_device_unique', 'ip_app_unique', 'ip_channel_unique', 'app_channel_unique']:
+            train_df[fea]= np.log2(1 + train_df[fea].values).astype(int)
+            test_df[fea]= np.log2(1 + test_df[fea].values).astype(int)
 
 len_train = len(train_df)
 val_size = 2500000
@@ -133,23 +143,15 @@ s_dout = concatenate([cat_fe, neu_fe])
 x = Dropout(0.2)(Dense(512, activation='relu')(s_dout))
 x = Dropout(0.2)(Dense(256, activation='relu')(x))
 x = Dropout(0.2)(Dense(128, activation='relu')(x))
-outp = Dense(1,activation='sigmoid')(x)
+outp = Dense(1, activation='sigmoid')(x)
 model = Model(inputs=[in_app,in_ch,in_dev,in_os,in_h,in_d,in_idhc,in_iac,in_ipoc,in_idc,in_acc,in_idhmc,in_idoau,in_idu, in_iau,in_acu,in_icu,in_nc], outputs=outp)
 
-batch_size = 1000000
-epochs = 5
-exp_decay = lambda init, fin, steps: (init/fin)**(1/(steps-1)) - 1
-steps = int(len(list(train_df)[0]) / batch_size) * epochs
-lr_init, lr_fin = 0.002, 0.0002
-lr_decay = exp_decay(lr_init, lr_fin, steps)
-optimizer_adam = Adam(lr=0.002, decay=lr_decay)
-model.compile(loss='binary_crossentropy',optimizer=optimizer_adam,metrics=['accuracy'])
-
-model.summary()
-
+batch_size = 17
+epochs = 3
+model.compile(loss='binary_crossentropy',optimizer='adam',metrics=['accuracy'])
 class_weight = {0:.01,1:.99} # magic
-model.fit(train_df, y_train, batch_size=batch_size, epochs=5, class_weight=class_weight, shuffle=False, verbose=1,
-callbacks=[roc_callback(training_data=(train_df, y_train), validation_data=(val_df, y_val))])
+for i in range(3):
+    model.fit(train_df, y_train, batch_size=2**(batch_size + i), epochs=1, class_weight=class_weight, shuffle=True, verbose=1, callbacks=[roc_callback(training_data=(train_df, y_train), validation_data=(val_df, y_val))])
 del train_df, y_train, val_df, y_val
 gc.collect()
 model.save_weights('imbalanced_data.h5')
@@ -164,4 +166,4 @@ print("predicting....")
 sub['is_attributed'] = model.predict(test_df, batch_size=batch_size, verbose=2)
 del test_df; gc.collect()
 print("writing....")
-sub.to_csv('imbalanced_data_v2.csv.gz', index=False, compression='gzip')
+sub.to_csv(f'imbalanced_data_{batch_size}.csv.gz', index=False, compression='gzip')
