@@ -57,13 +57,14 @@ def main():
         'boosting_type': 'dart',
         'objective': 'binary',
         'metric': metrics,
+        'learning_rate': args.learning_rate,
         # 'is_unbalance': 'true',  # because training data is unbalance (replaced with scale_pos_weight)
         # we should let it be smaller than 2^(max_depth) 31
         'num_leaves': args.num_leaves,
         'max_depth': -1,  # -1 means no limit
         # Minimum number of data need in a child(min_data_in_leaf)
         'min_child_samples': 20,
-        'max_bin': 255,  # Number of bucketed bin for feature values
+        'max_bin': 512,  # Number of bucketed bin for feature values
         'subsample': 0.6,  # Subsample ratio of the training instance.
         'subsample_freq': 0,  # frequence of subsample, <=0 means no enable
         # Subsample ratio of columns when constructing each tree.
@@ -89,13 +90,11 @@ def main():
     bst1 = lgb.train(params,
                      lgbtrain,
                      valid_sets=[lgbvalid],
-                     learning_rates=lambda iter: args.learning_rate *
-                     (0.99 ** iter),
                      valid_names=['valid'],
                      evals_result=evals_results,
                      num_boost_round=num_boost_round,
                      early_stopping_rounds=early_stopping_rounds,
-                     verbose_eval=10,
+                     verbose_eval=10
                      )
     print('[{}]: model training time'.format(time.time() - start_time))
 
