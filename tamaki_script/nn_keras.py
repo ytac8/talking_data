@@ -13,36 +13,6 @@ from keras.models import Model
 from keras.optimizers import Adam, SGD
 from sklearn.preprocessing import MinMaxScaler
 
-class roc_callback(Callback):
-    def __init__(self,training_data,validation_data):
-        self.x = training_data[0]
-        self.y = training_data[1]
-        self.x_val = validation_data[0]
-        self.y_val = validation_data[1]
-
-    def on_train_begin(self, logs={}):
-        return
-
-    def on_train_end(self, logs={}):
-        return
-
-    def on_epoch_begin(self, epoch, logs={}):
-        return
-
-    def on_epoch_end(self, epoch, logs={}):
-        y_pred = self.model.predict(self.x)
-        roc = roc_auc_score(self.y, y_pred)
-        y_pred_val = self.model.predict(self.x_val)
-        roc_val = roc_auc_score(self.y_val, y_pred_val)
-        print('\rroc-auc: %s - roc-auc_val: %s' % (str(round(roc,4)),str(round(roc_val,4))),end=100*' '+'\n')
-        return
-
-    def on_batch_begin(self, batch, logs={}):
-        return
-
-    def on_batch_end(self, batch, logs={}):
-        return
-
 path = '../input/'
 dtypes = {
         'ip'            : 'uint32',
@@ -68,7 +38,7 @@ for fea in ['ip_day_hour_count','ip_app_count','ip_app_os_count','ip_device_coun
             test_df[fea]= np.log2(1 + test_df[fea].values).astype(int)
 
 len_train = len(train_df)
-val_size = 2500000
+val_size = 2500
 val_df = train_df[(len_train-val_size):]
 train_df = train_df[:(len_train-val_size)]
 y_train = train_df['is_attributed'].values
@@ -147,11 +117,15 @@ outp = Dense(1, activation='sigmoid')(x)
 model = Model(inputs=[in_app,in_ch,in_dev,in_os,in_h,in_d,in_idhc,in_iac,in_ipoc,in_idc,in_acc,in_idhmc,in_idoau,in_idu, in_iau,in_acu,in_icu,in_nc], outputs=outp)
 
 batch_size = 17
-epochs = 3
+epochs = 2
 model.compile(loss='binary_crossentropy',optimizer='adam',metrics=['accuracy'])
 class_weight = {0:.01,1:.99} # magic
-for i in range(3):
-    model.fit(train_df, y_train, batch_size=2**(batch_size + i), epochs=1, class_weight=class_weight, shuffle=True, verbose=1, callbacks=[roc_callback(training_data=(train_df, y_train), validation_data=(val_df, y_val))])
+for i in range(epochs):
+    model.fit(train_df, y_train, batch_size=2**(batch_size + i), epochs=1, class_weight=class_weight, shuffle=True, verbose=1)
+    y_pred_val = model.predict(test_df, batch_size=1000000, verbose=2)
+    roc_val = roc_auc_score(y_val, y_pred_val)
+    print(f'roc_val:{roc_val}')
+
 del train_df, y_train, val_df, y_val
 gc.collect()
 model.save_weights('imbalanced_data.h5')
@@ -163,7 +137,7 @@ test_df.drop(drop_cols, axis=1, inplace=True)
 test_df = get_keras_data(test_df)
 
 print("predicting....")
-sub['is_attributed'] = model.predict(test_df, batch_size=batch_size, verbose=2)
+sub['is_attributed'] = model.predict(test_df, batch_size=1000000, verbose=2)
 del test_df; gc.collect()
 print("writing....")
-sub.to_csv(f'imbalanced_data_{batch_size}.csv.gz', index=False, compression='gzip')
+sub.to_csv(f'imbalanced_data_{batch_size}_{epochs}.csv.gz', index=False, compression='gzip')
