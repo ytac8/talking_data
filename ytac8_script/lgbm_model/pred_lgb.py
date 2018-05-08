@@ -17,13 +17,13 @@ sub = pd.DataFrame()
 sub['click_id'] = test_df.click_id.values.astype('uint32')
 
 len_train = len(train_df)
-val_size = 2500000
+val_size = 500000
 
 val_df = train_df[(len_train - val_size):]
 train_df = train_df[:(len_train - val_size)]
 
 target = 'is_attributed'
-metrics = 'auc'
+metrics = 'logloss'
 lr = 0.05
 num_leaves = 127
 
@@ -34,8 +34,7 @@ drop_feature_list = [
     'second',
     'ip',
     'device',
-    'attributed_time',
-    'ip_day_hour_minute_count',
+    'attributed_time', 'ip_day_hour_minute_count',
     'ip_day_hour_minute_second_count',
     'day',
     # 'app_channel_unique',
@@ -59,8 +58,8 @@ lgbvalid = lgb.Dataset(val_df[predictors].values, label=val_df[target].values,
                        )
 
 params = {
-    # 'boosting_type': 'gbdt',
-    'boosting_type': 'dart',
+    'boosting_type': 'gbdt',
+    # 'boosting_type': 'dart',
     'objective': 'binary',
     'metric': metrics,
     # because training data is unbalance (replaced with scale_pos_weight)
@@ -71,8 +70,8 @@ params = {
     'max_depth': -1,  # -1 means no limit
     # Minimum number of data need in a child(min_data_in_leaf)
     'min_child_samples': 20,
-    'max_bin': 255,  # Number of bucketed bin for feature values
-    # 'max_bin': 512,  # Number of bucketed bin for feature values
+    # 'max_bin': 255,  # Number of bucketed bin for feature values
+    'max_bin': 512,  # Number of bucketed bin for feature values
     'subsample': 0.6,  # Subsample ratio of the training instance.
     'subsample_freq': 0,  # frequence of subsample, <=0 means no enable
     # Subsample ratio of columns when constructing each tree.
@@ -85,11 +84,14 @@ params = {
     'reg_lambda': 5,  # L2 regularization term on weights
     'nthread': 32,
     'scale_pos_weight': 200,
-    'verbose': 0
+    'verbose': 0,
+    # 'feature_fraction': 0.9,
+    # 'bagging_fraction': 0.8,
+    # 'bagging_freq': 5,
 }
 
 evals_results = {}
-num_boost_round = 10000
+num_boost_round = 2000
 early_stopping_rounds = 50
 
 print("Training...")
@@ -116,7 +118,7 @@ print(metrics + ":", valid_score)
 print("Predicting...")
 sub['is_attributed'] = bst1.predict(
     test_df[predictors], num_iteration=bst1.best_iteration)
-sub.to_csv(f'auc_{valid_score}_it_{bst1.best_iteration}_lr_{lr}_num_leaves_{num_leaves}.csv.gz',
+sub.to_csv(f'auc_it_{bst1.best_iteration}_lr_{lr}_num_leaves_{num_leaves}_{metrics}.csv.gz',
            index=False, compression='gzip')
 
 mapper = {f: v for f, v in zip(predictors, bst1.feature_importance())}

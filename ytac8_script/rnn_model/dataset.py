@@ -6,10 +6,11 @@ import gc
 
 class LogData(Dataset):
 
-    def __init__(self, data, user_list, is_train):
+    def __init__(self, data, user_list, is_train, max_len):
         self.is_train = is_train
         self.dictionaries = {}
         self.user_list = user_list
+        self.max_len = max_len
         if is_train:
             self.data = data[['index', 'ip', 'app', 'os', 'device',
                               'channel', 'click_time', 'is_attributed']]
@@ -46,8 +47,8 @@ class LogData(Dataset):
 
     def __getitem__(self, idx):
         user = self.user_list.iloc[idx, :]
-        feature, label, index = self._preprocess(user)
-        return {"feature": feature, "label": label, "index": index}
+        feature, label, index, length = self._preprocess(user)
+        return {"feature": feature, "label": label, "index": index, "length": length}
 
     def _preprocess(self, user):
         ip = user['ip']
@@ -78,15 +79,19 @@ class LogData(Dataset):
         mat = torch.cat([app_input, os_input,
                          channel_input, device_input], dim=1)
 
+        del app_input, os_input, device_input, channel_input
+        gc.collect()
+
+        length = mat.size(0)
+        mat = self._padding(mat)
         label = None
         if self.is_train:
             label = torch.FloatTensor(
                 df.is_attributed.tolist())
+        label = self._padding(label)
+        index = self._padding(index)
 
-        del app_input, os_input, device_input, channel_input
-        gc.collect()
-
-        return mat, label, index
+        return mat, label, index, length
 
     def _convert(self, input_list, name):
         conved_list = []
@@ -96,8 +101,13 @@ class LogData(Dataset):
         return conved_list
 
     def _padding(self, feature, pad_value=-1):
-        length = feature.size()[0]
-        width = feature.size()[1]
-        padded = torch.zeros(self.max_len, width)
-        padded[:length, :] = feature
+        if len(feature.size()) == 2:
+            length = feature.size(0)
+            width = feature.size(1)
+            padded = torch.zeros(self.max_len, width)
+            padded[:length, :] = feature
+        elif len(feature.size()) == 1:
+            length = feature.size(0)
+            padded = torch.zeros(self.max_len)
+            padded[:length] = feature
         return padded

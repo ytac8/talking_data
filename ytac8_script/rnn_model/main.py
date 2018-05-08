@@ -18,14 +18,16 @@ def main(epochs, is_train=True, use_time=False):
     # initialize
     is_train = True
     n_epochs = epochs
-    save_epoch = 10
+    save_epoch = 1
     hidden_size = 100
     dropout_p = 0.1
     learning_rate = 0.1
     use_time = use_time
     use_cuda = True
-    batch_size = 1
+    batch_size = 32
     checkpoint_path = None
+    train_max_len = 248053
+    test_max_len = 33733
 
     # data_path = '../../data/'
     # train_df = pd.read_csv(data_path + 'raw/train.csv', chunksize=chunk_size)
@@ -44,9 +46,9 @@ def main(epochs, is_train=True, use_time=False):
     # print(len(train_user))
 
     train_data, train_loader = dataset(
-        train_df, train_user, batch_size, True)
+        train_df, train_user, batch_size, True, train_max_len)
     test_data, test_loader = dataset(
-        test_df, test_user, batch_size, False)
+        test_df, test_user, batch_size, False, test_max_len)
     del df, train_df, test_df, train_user, test_user
     gc.collect()
 
@@ -54,8 +56,11 @@ def main(epochs, is_train=True, use_time=False):
     input_size = 200
     output_size = 2
 
+    device = torch.device("cuda" if use_cuda else "cpu")
     encoder = Encoder(input_size, hidden_size,
-                      output_size=output_size, dropout_p=dropout_p)
+                      output_size=output_size, dropout_p=dropout_p).to(device)
+    encoder = nn.DataParallel(
+        encoder, device_ids=[i for i in range(torch.cuda.device_count())], dim=0)
 
     optimizer = Optimizer(encoder, lr=learning_rate)
     criterion = nn.NLLLoss()
@@ -113,10 +118,10 @@ def save_model(model, optimizer, epoch, save_epoch):
         torch.save(state, model_filename)
 
 
-def dataset(data, ip_list, batch_size, is_train):
+def dataset(data, ip_list, batch_size, is_train, max_len):
 
     # datasetの読み込み
-    dataset = LogData(data, ip_list, is_train)
+    dataset = LogData(data, ip_list, is_train, max_len)
     data_loader = DataLoader(
         dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
